@@ -66,10 +66,17 @@ export default function ChatInterface() {
     e.preventDefault()
 
     if (!input.trim() && files.length === 0) return
-
-    await sendMessage(input, files)
+    
+    // Store current input and files before clearing
+    const currentInput = input
+    const currentFiles = [...files]
+    
+    // Clear input and files immediately
     setInput("")
     setFiles([])
+    
+    // Then send the message with the stored values
+    await sendMessage(currentInput, currentFiles)
   }
 
   const handleUploadOnly = async () => {
@@ -78,9 +85,16 @@ export default function ChatInterface() {
       return
     }
 
-    const success = await uploadFiles(files)
-    if (success) {
-      setFiles([])
+    // Store current files before clearing
+    const currentFiles = [...files]
+    
+    // Clear files immediately
+    setFiles([])
+    
+    const success = await uploadFiles(currentFiles)
+    if (!success) {
+      // If upload fails, we could potentially restore the files
+      toast.error("Failed to upload files")
     }
   }
 
