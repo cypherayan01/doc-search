@@ -65,7 +65,7 @@ export default function ChatInterface() {
     startNewSession,
     loadSession,
     deleteFile,
-    uploadedFiles,
+    //uploadedFiles,
   } = useChatSession()
 
   const [input, setInput] = useState("")

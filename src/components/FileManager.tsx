@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "react"; //ChevronRight, ChevronDown,
 import { Button } from "@/components/ui/button";
-import { Paperclip, Trash2, ChevronRight, ChevronDown, AlertCircle, Download } from "lucide-react";
+import { Paperclip, Trash2,  AlertCircle, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
