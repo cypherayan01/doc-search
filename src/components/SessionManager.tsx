@@ -244,9 +244,9 @@ export default function SessionManager({ onSelectSession }: { onSelectSession: (
                                 <FileText className="h-4 w-4 text-red-500" />
                                 <div>
                                   <div className="text-sm font-medium">{file.name}</div>
-                                  <div className="text-xs text-muted-foreground">
+                                  {/* <div className="text-xs text-muted-foreground">
                                     {formatFileSize(file.size)} • {formatDate(file.created_at)}
-                                  </div>
+                                  </div> */}
                                 </div>
                               </div>
                               <Button

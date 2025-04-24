@@ -1,12 +1,58 @@
 "use client"
 
 import { useRef, useEffect, useState } from "react"
-import { Send, Globe, FileEdit, Paperclip, X, Loader2, PlusCircle, Trash2, ChevronDown, ChevronUp } from "lucide-react"
+import { Send, FileEdit, Paperclip, X, Loader2, PlusCircle, User, Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { useChatSession } from "../services/ChatSessionManager"
 import SessionManager from "./SessionManager"
+import FileManager from "./FileManager" 
+
+/**
+ * Improved text formatter with better paragraph handling and controlled bold styling
+ */
+const formatResponseText = (text: string) => {
+  if (!text) return null;
+
+  // First separate references (lines starting with [ or containing "Source:")
+  const referenceRegex = /(\n\[[^\]]+\]|\nSource:[^\n]+)/gi;
+  const parts = text.split(referenceRegex);
+  
+  return parts.map((part, index) => {
+    if (!part.trim()) return null;
+    
+    // Check if this part is a reference
+    const isReference = referenceRegex.test(part);
+    
+    if (isReference) {
+      return (
+        <p key={`ref-${index}`} className="mb-4 last:mb-0 text-sm text-muted-foreground italic">
+          {part.trim()}
+        </p>
+      );
+    }
+    
+    // Regular content - split into paragraphs
+    const paragraphs = part.split(/\n\s*\n/).filter(p => p.trim());
+    
+    return paragraphs.map((paragraph, pIndex) => (
+      <p key={`p-${index}-${pIndex}`} className="mb-4 last:mb-0 text-left">
+        {paragraph.split(/(\*\*[^*]+\*\*)/g).map((segment, sIndex) => {
+          // Only bold text that's explicitly marked with ** **
+          if (segment.startsWith('**') && segment.endsWith('**')) {
+            return (
+              <strong key={`bold-${sIndex}`} className="font-semibold">
+                {segment.slice(2, -2)}
+              </strong>
+            );
+          }
+          return segment;
+        })}
+      </p>
+    ));
+  });
+};
 
 export default function ChatInterface() {
   const {
@@ -25,7 +71,6 @@ export default function ChatInterface() {
   const [input, setInput] = useState("")
   const [files, setFiles] = useState<File[]>([])
   const [height, setHeight] = useState("auto")
-  const [showFilesManager, setShowFilesManager] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const pdfInputRef = useRef<HTMLInputElement>(null)
@@ -67,15 +112,12 @@ export default function ChatInterface() {
 
     if (!input.trim() && files.length === 0) return
     
-    // Store current input and files before clearing
     const currentInput = input
     const currentFiles = [...files]
     
-    // Clear input and files immediately
     setInput("")
     setFiles([])
     
-    // Then send the message with the stored values
     await sendMessage(currentInput, currentFiles)
   }
 
@@ -85,15 +127,11 @@ export default function ChatInterface() {
       return
     }
 
-    // Store current files before clearing
     const currentFiles = [...files]
-    
-    // Clear files immediately
     setFiles([])
     
     const success = await uploadFiles(currentFiles)
     if (!success) {
-      // If upload fails, we could potentially restore the files
       toast.error("Failed to upload files")
     }
   }
@@ -103,21 +141,22 @@ export default function ChatInterface() {
   }
 
   const handleDeleteFile = async (fileId: string) => {
-    const success = await deleteFile(fileId)
-    if (success) {
-      toast.success("File deleted successfully")
-    } else {
-      toast.error("Failed to delete file")
-    }
+    return await deleteFile(fileId)
   }
 
   return (
-    <div className="flex flex-col h-full w-full max-w-3xl mx-auto p-4">
+    <div className="flex flex-col h-full w-full max-w-[60rem] mx-auto pt-4 pb-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">
           {sessionId ? `Chat Session: ${sessionId.substring(0, 8)}...` : "New Chat"}
         </h2>
         <div className="flex gap-2">
+          {sessionId && hasUploadedFiles && (
+            <FileManager 
+              sessionId={sessionId} 
+              onDeleteFile={handleDeleteFile} 
+            />
+          )}
           <SessionManager onSelectSession={handleSelectSession} />
           <Button variant="outline" size="sm" onClick={startNewSession}>
             <PlusCircle className="h-4 w-4 mr-2" />
@@ -125,49 +164,6 @@ export default function ChatInterface() {
           </Button>
         </div>
       </div>
-
-      {/* Files Manager Button - Similar to Session Manager */}
-      {hasUploadedFiles && (
-        <div className="mb-4">
-          <Button 
-            variant="outline" 
-            className="w-full justify-between" 
-            onClick={() => setShowFilesManager(!showFilesManager)}
-          >
-            <span>Manage Files</span>
-            {showFilesManager ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-          
-          {/* Files Manager Dropdown */}
-          {showFilesManager && (
-            <div className="mt-2 border rounded-lg p-4 bg-muted/50">
-              <h3 className="font-medium mb-2">Uploaded Files</h3>
-              {uploadedFiles.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No files uploaded yet</p>
-              ) : (
-                <div className="space-y-2">
-                  {uploadedFiles.map((file) => (
-                    <div key={file.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                      <div className="flex items-center gap-2 truncate">
-                        <Paperclip className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">{file.name}</span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleDeleteFile(file.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="flex-1 overflow-y-auto mb-4 space-y-6">
         {messages.length === 0 ? (
@@ -181,32 +177,55 @@ export default function ChatInterface() {
           </div>
         ) : (
           messages.map((message) => (
-            <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[80%] rounded-lg p-4 ${
-                  message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-                }`}
-              >
-                {message.content}
+            <div key={message.id} className="flex items-start gap-3">
+              <div className={`flex-shrink-0 mt-1 ${message.role === "user" ? "order-last" : "order-first"}`}>
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full 
+                  ${message.role === "user" ? "bg-primary" : "bg-slate-200"}`}>
+                  {message.role === "user" ? (
+                    <User className="h-4 w-4 text-primary-foreground" />
+                  ) : (
+                    <Bot className="h-4 w-4 text-slate-700" />
+                  )}
+                </div>
+              </div>
+              
+              <div className={`flex max-w-[80%] ${message.role === "user" ? "justify-end ml-auto" : "justify-start mr-auto"}`}>
+                <div
+                  className={`rounded-lg p-4 text-left ${
+                    message.role === "user" 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-muted"
+                  }`}
+                >
+                  {message.role === "user" ? (
+                    message.content
+                  ) : (
+                    formatResponseText(message.content)
+                  )}
 
-                {/* Display attachments if any */}
-                {message.attachments && message.attachments.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    {message.attachments.map((attachment, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm">
-                        <Paperclip className="h-3 w-3" />
-                        <span>{attachment.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {message.attachments.map((attachment, index) => (
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                          <Paperclip className="h-3 w-3" />
+                          <span>{attachment.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))
         )}
 
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 mt-1">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-200">
+                <Bot className="h-4 w-4 text-slate-700" />
+              </div>
+            </div>
             <div className="bg-muted rounded-lg p-4 flex items-center gap-2">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>AI is thinking...</span>
@@ -215,7 +234,6 @@ export default function ChatInterface() {
         )}
       </div>
 
-      {/* File attachments preview */}
       {files.length > 0 && (
         <div className="mb-2">
           <div className="flex justify-between items-center mb-1">
@@ -266,7 +284,6 @@ export default function ChatInterface() {
           />
 
           <div className="flex gap-2">
-            {/* Regular file upload button */}
             <div className="relative group">
               <Button
                 type="button"
@@ -291,7 +308,6 @@ export default function ChatInterface() {
               />
             </div>
 
-            {/* PDF-only upload button */}
             <div className="relative group">
               <Button
                 type="button"
