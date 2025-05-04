@@ -10,12 +10,7 @@ function App() {
 
   return (
  
-      <BackgroundPaths />
-      
-    
-      
-      
-      
+      <BackgroundPaths />    
    
   )
 }
